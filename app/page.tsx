@@ -10,6 +10,7 @@ import {
   Radio,
   FileText,
   AlertCircle,
+  Flame,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { TimeframeSelector } from "@/components/TimeframeSelector";
@@ -27,6 +28,7 @@ export default function HomePage() {
   const [hours, setHours] = useState<number>(24);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [breakingOnly, setBreakingOnly] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [items, setItems] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -127,6 +129,11 @@ export default function HomePage() {
   // Pure single-state derivation of displayed items for instant reactivity
   const displayedItems = useMemo(() => {
     return items.filter((item) => {
+      // 0. Breaking news only toggle
+      if (breakingOnly && !item.isBreaking) {
+        return false;
+      }
+
       // 1. Filter by category
       let matchesCategory = false;
       if (selectedCategory === "all" || selectedCategory === "Todas") {
@@ -156,7 +163,11 @@ export default function HomePage() {
 
       return matchesCategory && matchesRegion && matchesSearch;
     });
-  }, [items, selectedCategory, selectedRegion, searchQuery]);
+  }, [items, breakingOnly, selectedCategory, selectedRegion, searchQuery]);
+
+  const breakingCount = useMemo(() => {
+    return items.filter((i) => i.isBreaking).length;
+  }, [items]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -201,7 +212,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F5F5F7] text-[#1D1D1F] transition-colors dark:bg-[#000000] dark:text-[#F5F5F7]">
+    <div className="flex min-h-screen w-full flex-col overflow-x-hidden bg-[#F5F5F7] text-[#1D1D1F] transition-colors dark:bg-[#000000] dark:text-[#F5F5F7]">
       {/* Institutional Header */}
       <Header
         onOpenSourcesModal={() => setIsSourcesOpen(true)}
@@ -211,23 +222,23 @@ export default function HomePage() {
       />
 
       {/* Main Container */}
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
-        {/* Top Control Bar */}
-        <section className="mb-6 rounded-3xl border border-[#E5E5EA] bg-white p-5 shadow-sm transition-colors sm:p-6 dark:border-[#2C2C2E] dark:bg-[#1C1C1E]">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-3.5 py-4 sm:px-6 sm:py-6 lg:px-8">
+        {/* Top Control Card - Super Optimized for Mobile */}
+        <section className="mb-4 rounded-3xl border border-[#E5E5EA] bg-white p-4 shadow-sm transition-colors sm:mb-6 sm:p-6 dark:border-[#2C2C2E] dark:bg-[#1C1C1E]">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             {/* Title & Subtitle */}
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-[#1D1D1F] sm:text-2xl dark:text-[#F5F5F7]">
+              <h1 className="text-lg font-bold tracking-tight text-[#1D1D1F] sm:text-2xl dark:text-[#F5F5F7]">
                 Monitor de Última Hora
               </h1>
-              <p className="mt-1 text-xs text-zinc-500 sm:text-sm dark:text-zinc-400">
+              <p className="mt-0.5 text-xs text-zinc-500 sm:mt-1 sm:text-sm dark:text-zinc-400">
                 Monitoreo continuo de medios, vocerías del Estado, servicios y
                 Derechos Humanos en Venezuela.
               </p>
             </div>
 
-            {/* Quick Actions & Timeframe (Min 44px touch targets) */}
-            <div className="flex flex-wrap items-center gap-3">
+            {/* Timeframe & Main Scan Button */}
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3">
               <TimeframeSelector
                 selectedHours={hours}
                 onSelectTimeframe={handleTimeframeChange}
@@ -239,7 +250,7 @@ export default function HomePage() {
                 type="button"
                 onClick={() => fetchScan(hours)}
                 disabled={isLoading}
-                className="flex min-h-[44px] items-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 dark:bg-blue-600 dark:hover:bg-blue-500"
+                className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:bg-blue-600 dark:hover:bg-blue-500"
               >
                 <RefreshCw
                   className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
@@ -249,8 +260,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Secondary Controls: Search, Export & Stats */}
-          <div className="mt-5 flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800/80">
+          {/* Secondary Controls: Search & 3-Column Mobile Action Grid */}
+          <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 pt-3.5 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800/80">
             {/* Search Input */}
             <div className="relative w-full sm:max-w-md">
               <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
@@ -259,89 +270,102 @@ export default function HomePage() {
                 placeholder="Filtrar por titular, cuenta, región o medio..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="min-h-[44px] w-full rounded-2xl border border-[#E5E5EA] bg-zinc-50 py-2.5 pl-10 pr-4 text-xs text-[#1D1D1F] placeholder:text-zinc-400 focus:border-blue-500 focus:bg-white focus:outline-none dark:border-[#2C2C2E] dark:bg-black/50 dark:text-[#F5F5F7] dark:placeholder:text-zinc-500 dark:focus:bg-[#1C1C1E]"
+                className="min-h-[44px] w-full rounded-2xl border border-[#E5E5EA] bg-zinc-50 py-2.5 pl-10 pr-16 text-xs text-[#1D1D1F] placeholder:text-zinc-400 focus:border-blue-500 focus:bg-white focus:outline-none dark:border-[#2C2C2E] dark:bg-black/50 dark:text-[#F5F5F7] dark:placeholder:text-zinc-500 dark:focus:bg-[#1C1C1E]"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                 >
                   Limpiar
                 </button>
               )}
             </div>
 
-            {/* Export Actions (Min 44px touch targets) */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Action Buttons: 3 Columns on Mobile, Flex on Desktop */}
+            <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:items-center">
               <button
                 type="button"
                 onClick={() => setIsExportOpen(true)}
-                className="flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#E5E5EA] bg-white px-4 py-2.5 text-xs font-medium text-[#1D1D1F] shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] dark:border-[#2C2C2E] dark:bg-[#1C1C1E] dark:text-[#F5F5F7] dark:hover:bg-zinc-800"
+                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl border border-[#E5E5EA] bg-white px-3 py-2 text-xs font-medium text-[#1D1D1F] shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] dark:border-[#2C2C2E] dark:bg-[#1C1C1E] dark:text-[#F5F5F7] dark:hover:bg-zinc-800"
                 title="Generar y configurar reportes institucionales"
               >
                 <FileText className="h-4 w-4 text-zinc-500" />
-                <span>Generar Reporte</span>
+                <span className="truncate">Reporte</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleCopyFullReport}
-                className="flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#E5E5EA] bg-white px-4 py-2.5 text-xs font-medium text-[#1D1D1F] shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] dark:border-[#2C2C2E] dark:bg-[#1C1C1E] dark:text-[#F5F5F7] dark:hover:bg-zinc-800"
+                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl border border-[#E5E5EA] bg-white px-3 py-2 text-xs font-medium text-[#1D1D1F] shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] dark:border-[#2C2C2E] dark:bg-[#1C1C1E] dark:text-[#F5F5F7] dark:hover:bg-zinc-800"
                 title="Copiar reporte institucional al portapapeles"
               >
                 <Copy className="h-4 w-4 text-zinc-500" />
-                <span className="hidden sm:inline">Copiar Reporte</span>
-                <span className="sm:hidden">Copiar</span>
+                <span className="truncate">Copiar</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleShareWhatsApp}
-                className="flex min-h-[44px] items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-500 active:scale-[0.98] dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                className="flex min-h-[44px] items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-2 text-xs font-medium text-white shadow-sm transition hover:bg-emerald-500 active:scale-[0.98] dark:bg-emerald-600 dark:hover:bg-emerald-500"
                 title="Compartir reporte institucional por WhatsApp"
               >
                 <Share2 className="h-4 w-4" />
-                <span>WhatsApp</span>
+                <span className="truncate">WhatsApp</span>
               </button>
             </div>
           </div>
         </section>
 
-        {/* Category Filters Bar */}
-        <section className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Section 1: Category Filters Bar */}
+        <section className="mb-2 w-full">
           <CategoryFilter
             selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              setBreakingOnly(false);
+            }}
             categoryCounts={categoryCounts}
             totalCount={items.length}
+            breakingCount={breakingCount}
+            breakingOnly={breakingOnly}
+            onToggleBreakingOnly={() => setBreakingOnly(!breakingOnly)}
           />
-
-          {/* Stats indicator */}
-          <div className="flex shrink-0 items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="font-mono font-semibold">
-              {displayedItems.length} resultado(s)
-            </span>
-            {lastScanTime && (
-              <span className="hidden font-mono text-[11px] text-zinc-400 md:inline dark:text-zinc-500">
-                Actualizado:{" "}
-                {lastScanTime.toLocaleTimeString("es-VE", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
-              </span>
-            )}
-          </div>
         </section>
 
-        {/* Region Filters Bar */}
-        <section className="mb-4">
+        {/* Section 2: Region Filters Bar */}
+        <section className="mb-3 w-full">
           <RegionFilter
             selectedRegion={selectedRegion}
             onSelectRegion={setSelectedRegion}
             regionCounts={regionCounts}
           />
         </section>
+
+        {/* Section 3: Clean Results & Time Subheader (No overlap) */}
+        <div className="mb-4 flex items-center justify-between border-b border-zinc-200/60 pb-2 text-xs text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400">
+          <div className="flex items-center gap-2">
+            <span className="font-mono font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
+              {displayedItems.length} resultado(s)
+            </span>
+            {breakingOnly && (
+              <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                Filtro Última Hora
+              </span>
+            )}
+          </div>
+
+          {lastScanTime && (
+            <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
+              Actualizado:{" "}
+              {lastScanTime.toLocaleTimeString("es-VE", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </span>
+          )}
+        </div>
 
         {/* Error Alert */}
         {error && (
@@ -362,7 +386,7 @@ export default function HomePage() {
 
         {/* Loading Skeletons */}
         {isLoading && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
@@ -391,8 +415,8 @@ export default function HomePage() {
         {/* News Items Grid with dynamic key for instant repainting */}
         {!isLoading && displayedItems.length > 0 && (
           <div
-            key={`${hours}-${selectedCategory}-${selectedRegion}-${displayedItems.length}`}
-            className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            key={`${hours}-${selectedCategory}-${selectedRegion}-${breakingOnly}-${displayedItems.length}`}
+            className="grid gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3"
           >
             {displayedItems.map((item, index) => (
               <NewsCard key={item.id} item={item} index={index} />
@@ -410,8 +434,8 @@ export default function HomePage() {
               Sin registros relevantes en la ventana de {hours}h
             </h3>
             <p className="mt-1 max-w-sm text-xs text-zinc-500 dark:text-zinc-400">
-              {searchQuery || selectedCategory !== "all" || selectedRegion !== "all"
-                ? "No se hallaron noticias verificadas con los filtros actuales. Prueba cambiando de categoría, región, ampliando la ventana temporal o limpiando la búsqueda."
+              {searchQuery || selectedCategory !== "all" || selectedRegion !== "all" || breakingOnly
+                ? "No se hallaron noticias verificadas con los filtros actuales. Prueba cambiando de categoría, región, desactivando filtros o limpiando la búsqueda."
                 : `No se han detectado nuevas publicaciones en las fuentes monitoreadas durante las últimas ${hours} horas.`}
             </p>
             <div className="mt-5 flex items-center gap-2">
@@ -423,12 +447,13 @@ export default function HomePage() {
                   Ampliar a {hours < 6 ? "6h" : "24h"}
                 </button>
               )}
-              {(searchQuery || selectedCategory !== "all" || selectedRegion !== "all") && (
+              {(searchQuery || selectedCategory !== "all" || selectedRegion !== "all" || breakingOnly) && (
                 <button
                   onClick={() => {
                     setSearchQuery("");
                     setSelectedCategory("all");
                     setSelectedRegion("all");
+                    setBreakingOnly(false);
                   }}
                   className="min-h-[44px] rounded-2xl border border-[#E5E5EA] bg-white px-5 py-2.5 text-xs font-medium text-[#1D1D1F] transition hover:bg-zinc-50 dark:border-[#2C2C2E] dark:bg-[#1C1C1E] dark:text-[#F5F5F7]"
                 >

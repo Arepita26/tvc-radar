@@ -83,9 +83,6 @@ export interface ScanResult {
   xSessionActive: boolean;
 }
 
-/**
- * Detecta la región geográfica a partir del texto
- */
 export function detectRegion(text: string): string | undefined {
   for (const reg of VENEZUELA_REGIONS) {
     if (reg.regex.test(text)) {
@@ -95,9 +92,6 @@ export function detectRegion(text: string): string | undefined {
   return undefined;
 }
 
-/**
- * Función de Descarte Negativo y Clasificación Dinámica
- */
 export function filterAndCategorizeItem(item: {
   title: string;
   defaultCategory: string;
@@ -139,9 +133,6 @@ const parser = new Parser({
   },
 });
 
-/**
- * Convierte strings de fecha heterogéneos a timestamp Unix.
- */
 export function parseToTimestamp(dateStr?: string | null): number {
   if (!dateStr || typeof dateStr !== "string") return 0;
   const trimmed = dateStr.trim();
@@ -268,9 +259,6 @@ async function fetchFeedWithTimeout(url: string, timeoutMs: number = 8000) {
   }
 }
 
-/**
- * Orquestador principal de escaneo
- */
 export async function scanNews(
   hours: number = 24,
   credentials?: TwitterCredentials
@@ -404,8 +392,12 @@ export async function scanNews(
   const deduplicatedItems: NewsItem[] = [];
   const seenUrls = new Set<string>();
 
-  // Ordenamiento cronológico descendente estricto
-  validItems.sort((a, b) => b.timestamp - a.timestamp);
+  // Prioridad 1: Breaking News primero. Prioridad 2: Timestamp descendente
+  validItems.sort((a, b) => {
+    if (a.isBreaking && !b.isBreaking) return -1;
+    if (!a.isBreaking && b.isBreaking) return 1;
+    return b.timestamp - a.timestamp;
+  });
 
   for (const item of validItems) {
     if (seenUrls.has(item.url)) continue;
