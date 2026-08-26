@@ -126,9 +126,9 @@ export default function HomePage() {
     fetchScan(newHours);
   };
 
-  // Pure single-state derivation of displayed items for instant reactivity
+  // Pure single-state derivation of displayed items with breaking news prioritized at the top
   const displayedItems = useMemo(() => {
-    return items.filter((item) => {
+    const filtered = items.filter((item) => {
       // 0. Breaking news only toggle
       if (breakingOnly && !item.isBreaking) {
         return false;
@@ -162,6 +162,12 @@ export default function HomePage() {
         (item.snippet && item.snippet.toLowerCase().includes(normalizedQuery));
 
       return matchesCategory && matchesRegion && matchesSearch;
+    });
+
+    return filtered.sort((a, b) => {
+      if (a.isBreaking && !b.isBreaking) return -1;
+      if (!a.isBreaking && b.isBreaking) return 1;
+      return b.timestamp - a.timestamp;
     });
   }, [items, breakingOnly, selectedCategory, selectedRegion, searchQuery]);
 
