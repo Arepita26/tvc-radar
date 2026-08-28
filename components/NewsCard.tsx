@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { ExternalLink, Copy, Check, Share2, Flame, MapPin } from "lucide-react";
+import { ExternalLink, Copy, Check, Share2, MapPin } from "lucide-react";
 import { NewsItem, VENEZUELA_REGIONS } from "@/lib/scanner";
 
 interface NewsCardProps {
@@ -48,6 +48,8 @@ export const NewsCard: React.FC<NewsCardProps> = ({ item, index }) => {
     );
   };
 
+  const indexFormatted = String(index + 1).padStart(2, "0");
+
   return (
     <article className="group relative flex flex-col justify-between rounded-2xl border border-[#E5E5EA] bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-[#2C2C2E] dark:bg-[#1C1C1E] dark:hover:border-zinc-700">
       <div>
@@ -61,45 +63,41 @@ export const NewsCard: React.FC<NewsCardProps> = ({ item, index }) => {
           </div>
         )}
 
-        {/* Card Header: Category badge, Region badge, Source, Relative Time */}
-        <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-2.5 dark:border-zinc-800/60">
-          <div className="flex flex-wrap items-center gap-1.5 overflow-hidden">
-            <span className="font-mono text-xs font-semibold text-zinc-400 dark:text-zinc-500">
-              #{String(index + 1).padStart(2, "0")}
+        {/* Card Header: Metadata Row without truncation/overflow collision */}
+        <div className="flex items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-2 border-b border-zinc-100 pb-2.5 dark:border-zinc-800/60">
+          <div className="flex items-center gap-1.5 min-w-0 flex-1 flex-wrap">
+            <span className="font-mono font-medium text-zinc-400 dark:text-zinc-500 shrink-0">
+              #{indexFormatted}
             </span>
             <span
-              className={`rounded-full border px-2.5 py-0.5 text-[11px] font-medium tracking-wide ${categoryStyle}`}
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 border ${categoryStyle}`}
             >
               {item.category === "DDHH" ? "Derechos Humanos" : item.category}
             </span>
             {regionDef && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200/80 bg-zinc-100/80 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200/80 bg-zinc-100/80 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 shrink-0">
                 <MapPin className="h-2.5 w-2.5 text-zinc-400" />
                 <span>{regionDef.label}</span>
               </span>
             )}
-            <span className="truncate text-xs font-medium text-[#1D1D1F] dark:text-[#F5F5F7]">
+            <span className="font-medium truncate text-zinc-600 dark:text-zinc-300">
               {item.source}
             </span>
           </div>
-
-          <time
-            dateTime={item.publishedAt}
-            className="shrink-0 font-mono text-[11px] text-zinc-400 dark:text-zinc-500"
-          >
+          <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 whitespace-nowrap shrink-0 font-mono">
             {item.relativeTime}
-          </time>
+          </span>
         </div>
 
         {/* Headline */}
-        <div className="mt-3">
+        <div className="mt-2.5">
           <a
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
             className="group/link block"
           >
-            <h3 className="text-sm font-semibold leading-snug text-[#1D1D1F] transition-colors group-hover/link:text-blue-600 dark:text-[#F5F5F7] dark:group-hover/link:text-blue-400">
+            <h3 className="text-[15px] sm:text-base font-semibold leading-snug text-zinc-900 dark:text-zinc-100 break-words hyphens-none transition-colors group-hover/link:text-blue-600 dark:group-hover/link:text-blue-400">
               {item.title}
             </h3>
           </a>
