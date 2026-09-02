@@ -164,36 +164,34 @@ export default function HomePage() {
 
   useEffect(() => {
     checkSessionStatus();
-    fetchScan(hours, false);
-  }, [fetchScan, checkSessionStatus, hours]);
+    // Carga inicial del conjunto maestro de 24 horas (o 48h si el usuario lo solicita)
+    fetchScan(24, false);
+  }, [fetchScan, checkSessionStatus]);
 
   const handleTimeframeChange = (newHours: number) => {
     setHours(newHours);
-    // Hidratación local inmediata para la nueva ventana horaria
-    if (typeof window !== "undefined") {
-      try {
-        const localCache = localStorage.getItem(`tvc_scan_cache_${newHours}`);
-        if (localCache) {
-          const parsed = JSON.parse(localCache);
-          if (parsed && Array.isArray(parsed.items)) {
-            setItems(parsed.items);
-            if (parsed.scannedAt) setLastScanTime(new Date(parsed.scannedAt));
-          }
-        }
-      } catch {}
+    // Si el usuario pide 48h y tenemos menos de 48h cargadas en memoria, expandimos el dataset maestro en background
+    if (newHours > 24 && items.length > 0) {
+      fetchScan(newHours, false);
     }
-    fetchScan(newHours, false);
   };
 
-  // Pure single-state derivation of displayed items with breaking news prioritized at the top
+  // 1. Filtrado Temporal Instantáneo en Cliente (0.0 ms de latencia)
+  const timeframeFilteredItems = useMemo(() => {
+    const now = Date.now();
+    const cutoff = now - hours * 60 * 60 * 1000;
+    return items.filter((item) => item.timestamp >= cutoff);
+  }, [items, hours]);
+
+  // 2. Filtrado Dinámico por Categoría, Región, Búsqueda y Priorización Breaking News
   const displayedItems = useMemo(() => {
-    const filtered = items.filter((item) => {
-      // 0. Breaking news only toggle
+    const filtered = timeframeFilteredItems.filter((item) => {
+      // 0. Filtro Breaking News
       if (breakingOnly && !item.isBreaking) {
         return false;
       }
 
-      // 1. Filter by category
+      // 1. Filtro por Categoría
       let matchesCategory = false;
       if (selectedCategory === "all" || selectedCategory === "Todas") {
         matchesCategory = true;
@@ -204,7 +202,7 @@ export default function HomePage() {
           item.category?.toLowerCase() === selectedCategory.toLowerCase();
       }
 
-      // 2. Filter by geographic region
+      // 2. Filtro por Región Geográfica
       let matchesRegion = false;
       if (selectedRegion === "all") {
         matchesRegion = true;
@@ -212,7 +210,7 @@ export default function HomePage() {
         matchesRegion = item.region === selectedRegion;
       }
 
-      // 3. Filter by search query
+      // 3. Filtro por Búsqueda
       const normalizedQuery = searchQuery.toLowerCase().trim();
       const matchesSearch =
         normalizedQuery === "" ||
@@ -228,32 +226,32 @@ export default function HomePage() {
       if (!a.isBreaking && b.isBreaking) return 1;
       return b.timestamp - a.timestamp;
     });
-  }, [items, breakingOnly, selectedCategory, selectedRegion, searchQuery]);
+  }, [timeframeFilteredItems, breakingOnly, selectedCategory, selectedRegion, searchQuery]);
 
   const breakingCount = useMemo(() => {
-    return items.filter((i) => i.isBreaking).length;
-  }, [items]);
+    return timeframeFilteredItems.filter((i) => i.isBreaking).length;
+  }, [timeframeFilteredItems]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const item of items) {
+    for (const item of timeframeFilteredItems) {
       const cat = item.category;
       if (cat) {
         counts[cat] = (counts[cat] || 0) + 1;
       }
     }
     return counts;
-  }, [items]);
+  }, [timeframeFilteredItems]);
 
   const regionCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const item of items) {
+    for (const item of timeframeFilteredItems) {
       if (item.region) {
         counts[item.region] = (counts[item.region] || 0) + 1;
       }
     }
     return counts;
-  }, [items]);
+  }, [timeframeFilteredItems]);
 
   const showToast = (message: string) => {
     setCopiedToast(message);
@@ -307,7 +305,7 @@ export default function HomePage() {
               <TimeframeSelector
                 selectedHours={hours}
                 onSelectTimeframe={handleTimeframeChange}
-                disabled={isLoading}
+                disabled={false}
               />
 
               {/* Main Scan Button */}
