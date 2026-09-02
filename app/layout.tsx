@@ -128,8 +128,8 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning className="dark">
       <head>
-        <meta name="app-version" content="2026.08.28.1" />
-        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+        <meta name="app-version" content="2026.09.02.1" />
+        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -144,6 +144,36 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
+                  const CURRENT_VERSION = '2026.09.02.1';
+                  const installedVersion = localStorage.getItem('tvc_app_version');
+
+                  // Si la versión en el dispositivo es antigua, purgamos cachés obsoletas automáticamente
+                  if (installedVersion !== CURRENT_VERSION) {
+                    const keysToRemove = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                      const key = localStorage.key(i);
+                      if (key && (key.startsWith('tvc_scan_cache_') || key.startsWith('tvc_cached_'))) {
+                        keysToRemove.push(key);
+                      }
+                    }
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+                    localStorage.setItem('tvc_app_version', CURRENT_VERSION);
+
+                    if ('serviceWorker' in navigator) {
+                      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                        for (let registration of registrations) {
+                          registration.unregister();
+                        }
+                      });
+                    }
+
+                    if ('caches' in window) {
+                      caches.keys().then(function(names) {
+                        for (let name of names) caches.delete(name);
+                      });
+                    }
+                  }
+
                   const storedTheme = localStorage.getItem('tvc_theme');
                   if (storedTheme === 'light') {
                     document.documentElement.classList.remove('dark');
