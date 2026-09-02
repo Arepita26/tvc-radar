@@ -26,31 +26,31 @@ export const VENEZUELA_REGIONS = [
     id: "caracas_miranda",
     label: "Caracas y Miranda",
     regex:
-      /caracas|miranda|la guaira|vargas|chacao|baruta|el hatillo|sucre|petare|guarenas|guatire|los teques|altamira|chacaito|helicoide|rodeo/i,
+      /caracas|miranda|la guaira|vargas|chacao|baruta|el hatillo|sucre|petare|guarenas|guatire|los teques|altamira|chacaito|helicoide|rodeo|el tequeño|eltequeno/i,
   },
   {
     id: "zulia_occidente",
     label: "Zulia y Occidente",
     regex:
-      /zulia|maracaibo|san francisco|cabimas|costa oriental|falcon|coro|punto fijo|golfete|lara|barquisimeto|carora|yaracuy|san felipe/i,
+      /zulia|maracaibo|san francisco|cabimas|costa oriental|falcon|coro|punto fijo|golfete|lara|barquisimeto|carora|yaracuy|san felipe|el impulso|elimpulsocom|es con usted|esconusted/i,
   },
   {
     id: "tachira_andes",
     label: "Táchira y Andes",
     regex:
-      /tachira|san cristobal|cucuta|frontera|ureña|san antonio del tachira|merida|el vigia|trujillo|valera/i,
+      /tachira|san cristobal|cucuta|frontera|ureña|san antonio del tachira|merida|el vigia|trujillo|valera|diario de los andes|diariodlosandes|la nacion|lanacionweb|centro de noticias tachira|cnfrontera/i,
   },
   {
     id: "carabobo_aragua",
     label: "Carabobo y Aragua",
     regex:
-      /carabobo|valencia|naguanagua|puerto cabello|sandiego|guacara|aragua|maracay|la victoria|cagua|turmero|tocoron/i,
+      /carabobo|valencia|naguanagua|puerto cabello|sandiego|guacara|aragua|maracay|la victoria|cagua|turmero|tocoron|el carabobeño|el-carabobeno/i,
   },
   {
     id: "bolivar_oriente",
     label: "Bolívar y Oriente",
     regex:
-      /bolivar|guayana|san felix|puerto ordaz|orinoco|ciudad bolivar|anzoategui|barcelona|puerto la cruz|lecheria|monagas|maturin|sucre|cumana|carupano|nueva esparta|margarita/i,
+      /bolivar|guayana|san felix|puerto ordaz|orinoco|ciudad bolivar|anzoategui|barcelona|puerto la cruz|lecheria|monagas|maturin|sucre|cumana|carupano|nueva esparta|margarita|correo del caroni|correodelcaroni|el tiempo anzoategui|enoriente/i,
   },
 ] as const;
 
@@ -83,9 +83,10 @@ export interface ScanResult {
   xSessionActive: boolean;
 }
 
-export function detectRegion(text: string): string | undefined {
+export function detectRegion(text: string, source?: string): string | undefined {
+  const combined = `${text} ${source || ""}`;
   for (const reg of VENEZUELA_REGIONS) {
-    if (reg.regex.test(text)) {
+    if (reg.regex.test(combined)) {
       return reg.id;
     }
   }
@@ -94,6 +95,7 @@ export function detectRegion(text: string): string | undefined {
 
 export function filterAndCategorizeItem(item: {
   title: string;
+  source?: string;
   defaultCategory: string;
   sourceType: "rss" | "syndicated";
 }): { keep: boolean; category: string; region?: string; isBreaking?: boolean } {
@@ -117,7 +119,7 @@ export function filterAndCategorizeItem(item: {
     assignedCategory = "Politica";
   }
 
-  const region = detectRegion(text);
+  const region = detectRegion(text, item.source);
   const isBreaking = BREAKING_REGEX.test(text);
 
   return { keep: true, category: assignedCategory, region, isBreaking };
@@ -373,6 +375,7 @@ export async function scanNews(
   for (const raw of timeFiltered) {
     const evaluation = filterAndCategorizeItem({
       title: raw.title,
+      source: raw.source,
       defaultCategory: raw.category,
       sourceType: raw.sourceType,
     });
