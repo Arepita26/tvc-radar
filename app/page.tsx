@@ -51,6 +51,8 @@ export default function HomePage() {
     (sourcesData.rss_feeds?.length || 0) +
     (sourcesData.x_accounts?.length || 0);
 
+  const [isBackgroundSyncing, setIsBackgroundSyncing] = useState<boolean>(false);
+
   const checkSessionStatus = useCallback(() => {
     if (typeof window !== "undefined") {
       const auth = localStorage.getItem("tvc_x_auth_token");
@@ -62,8 +64,35 @@ export default function HomePage() {
   }, []);
 
   const fetchScan = useCallback(
-    async (timeframeHours: number) => {
-      setIsLoading(true);
+    async (timeframeHours: number, forceRefresh: boolean = false) => {
+      // 1. Hidratación Instantánea desde LocalStorage (0 ms de espera)
+      if (typeof window !== "undefined" && !forceRefresh) {
+        try {
+          const localCache = localStorage.getItem(`tvc_scan_cache_${timeframeHours}`);
+          if (localCache) {
+            const parsed = JSON.parse(localCache);
+            if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+              setItems(parsed.items);
+              setStats({
+                total: parsed.totalScannedSources || totalSourcesCount,
+                success: parsed.successfulSources || parsed.items.length,
+              });
+              if (parsed.scannedAt) {
+                setLastScanTime(new Date(parsed.scannedAt));
+              }
+            }
+          }
+        } catch {
+          // Continuar con petición de red
+        }
+      }
+
+      // Si ya hay items en pantalla, no bloqueamos la UI con spinner completo
+      if (forceRefresh) {
+        setIsLoading(true);
+      } else {
+        setIsBackgroundSyncing(true);
+      }
       setError(null);
 
       const headers: Record<string, string> = {};
@@ -79,7 +108,8 @@ export default function HomePage() {
       }
 
       try {
-        const response = await fetch(`/api/scan?hours=${timeframeHours}`, {
+        const url = `/api/scan?hours=${timeframeHours}${forceRefresh ? "&force=true" : ""}`;
+        const response = await fetch(url, {
           headers,
           cache: "no-store",
         });
@@ -99,7 +129,19 @@ export default function HomePage() {
           if (scanData.xSessionActive !== undefined) {
             setIsXSessionActive(scanData.xSessionActive);
           }
-          setLastScanTime(new Date());
+          setLastScanTime(new Date(scanData.scannedAt || Date.now()));
+
+          // Persistir en caché local del teléfono para la siguiente apertura
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem(
+                `tvc_scan_cache_${timeframeHours}`,
+                JSON.stringify(scanData)
+              );
+            } catch {
+              // LocalStorage quota handling
+            }
+          }
         } else {
           throw new Error(data.error || "Fallo en la extracción");
         }
@@ -108,22 +150,39 @@ export default function HomePage() {
           err instanceof Error
             ? err.message
             : "No fue posible conectar con el motor de escaneo";
-        setError(message);
+        // Si ya tenemos items en pantalla desde caché local, no mostramos error invasivo
+        if (items.length === 0) {
+          setError(message);
+        }
       } finally {
         setIsLoading(false);
+        setIsBackgroundSyncing(false);
       }
     },
-    []
+    [totalSourcesCount, items.length]
   );
 
   useEffect(() => {
     checkSessionStatus();
-    fetchScan(hours);
+    fetchScan(hours, false);
   }, [fetchScan, checkSessionStatus, hours]);
 
   const handleTimeframeChange = (newHours: number) => {
     setHours(newHours);
-    fetchScan(newHours);
+    // Hidratación local inmediata para la nueva ventana horaria
+    if (typeof window !== "undefined") {
+      try {
+        const localCache = localStorage.getItem(`tvc_scan_cache_${newHours}`);
+        if (localCache) {
+          const parsed = JSON.parse(localCache);
+          if (parsed && Array.isArray(parsed.items)) {
+            setItems(parsed.items);
+            if (parsed.scannedAt) setLastScanTime(new Date(parsed.scannedAt));
+          }
+        }
+      } catch {}
+    }
+    fetchScan(newHours, false);
   };
 
   // Pure single-state derivation of displayed items with breaking news prioritized at the top
@@ -254,14 +313,14 @@ export default function HomePage() {
               {/* Main Scan Button */}
               <button
                 type="button"
-                onClick={() => fetchScan(hours)}
-                disabled={isLoading}
+                onClick={() => fetchScan(hours, true)}
+                disabled={isLoading || isBackgroundSyncing}
                 className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto dark:bg-blue-600 dark:hover:bg-blue-500"
               >
                 <RefreshCw
-                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                  className={`h-4 w-4 ${isLoading || isBackgroundSyncing ? "animate-spin" : ""}`}
                 />
-                <span>{isLoading ? "Escaneando..." : "Escanear Última Hora"}</span>
+                <span>{isLoading ? "Escaneando..." : isBackgroundSyncing ? "Sincronizando..." : "Escanear Última Hora"}</span>
               </button>
             </div>
           </div>
@@ -361,7 +420,12 @@ export default function HomePage() {
             )}
           </div>
 
-          {lastScanTime && (
+          {isBackgroundSyncing ? (
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium text-blue-600 dark:text-blue-400">
+              <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+              <span>Sincronizando en vivo...</span>
+            </span>
+          ) : lastScanTime ? (
             <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
               Actualizado:{" "}
               {lastScanTime.toLocaleTimeString("es-VE", {
@@ -370,7 +434,7 @@ export default function HomePage() {
                 second: "2-digit",
               })}
             </span>
-          )}
+          ) : null}
         </div>
 
         {/* Error Alert */}

@@ -50,21 +50,35 @@ export async function GET(request: NextRequest) {
       sanitizeToken(process.env.X_CT0) ||
       sanitizeToken(process.env.TWITTER_CT0);
 
+    const rawForce = searchParams.get("force");
+    const forceRefresh = rawForce === "true" || rawForce === "1";
+
     console.log(
-      `[TVC Radar - API] Escaneando con ventana: ${hours}h | Sesión X: ${
+      `[TVC Radar - API] Escaneando con ventana: ${hours}h | Force: ${forceRefresh} | Sesión X: ${
         effectiveAuthToken && effectiveCt0 ? "PRESENTE" : "AUSENTE"
       }`
     );
 
-    const result = await scanNews(hours, {
-      authToken: effectiveAuthToken,
-      ct0: effectiveCt0,
-    });
+    const result = await scanNews(
+      hours,
+      {
+        authToken: effectiveAuthToken,
+        ct0: effectiveCt0,
+      },
+      forceRefresh
+    );
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: result,
     });
+
+    response.headers.set(
+      "X-Cache-Status",
+      result.isFromCache ? "HIT" : "MISS"
+    );
+
+    return response;
   } catch (err: unknown) {
     const message =
       err instanceof Error

@@ -81,7 +81,16 @@ export interface ScanResult {
   timeframeHours: number;
   scannedAt: string;
   xSessionActive: boolean;
+  isFromCache?: boolean;
 }
+
+interface CachedScan {
+  timestamp: number;
+  data: ScanResult;
+}
+
+const scanCache = new Map<string, CachedScan>();
+const SCAN_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutos de caché en memoria del servidor
 
 export function detectRegion(text: string, source?: string): string | undefined {
   const combined = `${text} ${source || ""}`;
@@ -126,7 +135,7 @@ export function filterAndCategorizeItem(item: {
 }
 
 const parser = new Parser({
-  timeout: 8000,
+  timeout: 6000,
   headers: {
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -185,6 +194,12 @@ function cleanTitle(rawTitle?: string): string {
   let title = rawTitle.trim();
   title = title.replace(/ - [^-]+$/, "").trim();
   title = title.replace(/<!\[CDATA\[(.*?)\]\]>/g, "$1");
+  title = title.replace(/&amp;/g, "&");
+  title = title.replace(/&quot;/g, '"');
+  title = title.replace(/&#039;/g, "'");
+  title = title.replace(/&lt;/g, "<");
+  title = title.replace(/&gt;/g, ">");
+  title = title.replace(/&nbsp;/g, " ");
   title = title.replace(/<[^>]*>/g, "");
   title = title.replace(
     /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g,
@@ -196,7 +211,7 @@ function cleanTitle(rawTitle?: string): string {
 function cleanUrl(rawUrl?: string): string {
   if (!rawUrl) return "";
   try {
-    const parsed = new URL(rawUrl);
+    const parsed = new URL(rawUrl.trim());
     const paramsToRemove = [
       "utm_source",
       "utm_medium",
@@ -247,7 +262,7 @@ function isSimilar(titleA: string, titleB: string): boolean {
   return similarity > 0.65;
 }
 
-async function fetchFeedWithTimeout(url: string, timeoutMs: number = 8000) {
+async function fetchFeedWithTimeout(url: string, timeoutMs: number = 6000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -263,14 +278,11 @@ async function fetchFeedWithTimeout(url: string, timeoutMs: number = 8000) {
 
 export async function scanNews(
   hours: number = 24,
-  credentials?: TwitterCredentials
+  credentials?: TwitterCredentials,
+  forceRefresh: boolean = false
 ): Promise<ScanResult> {
   const now = Date.now();
   const cutoffTimestamp = now - hours * 60 * 60 * 1000;
-  const allRawItems: NewsItem[] = [];
-
-  const rssFeeds = sourcesConfig.rss_feeds || [];
-  const xAccounts: XAccountConfig[] = sourcesConfig.x_accounts || [];
 
   const effectiveAuthToken =
     credentials?.authToken ||
@@ -283,6 +295,23 @@ export async function scanNews(
     process.env.TWITTER_CT0;
 
   const xSessionActive = Boolean(effectiveAuthToken && effectiveCt0);
+  const cacheKey = `scan_${hours}_${xSessionActive ? "auth" : "anon"}`;
+
+  // Comprobar caché en servidor si no se solicita refresco forzado
+  if (!forceRefresh) {
+    const cached = scanCache.get(cacheKey);
+    if (cached && now - cached.timestamp < SCAN_CACHE_TTL_MS) {
+      return {
+        ...cached.data,
+        isFromCache: true,
+      };
+    }
+  }
+
+  const allRawItems: NewsItem[] = [];
+  const rssFeeds = sourcesConfig.rss_feeds || [];
+  const xAccounts: XAccountConfig[] = sourcesConfig.x_accounts || [];
+
   let successfulSources = 0;
 
   // 1. Extracción en Paralelo: Feeds RSS
@@ -335,8 +364,8 @@ export async function scanNews(
     }
   }
 
-  // 2. Extracción en Lotes: Cuentas de X (Twitter)
-  const BATCH_SIZE = 4;
+  // 2. Extracción en Lotes Paralelos Acelerados: Cuentas de X (Twitter)
+  const BATCH_SIZE = 8;
   for (let i = 0; i < xAccounts.length; i += BATCH_SIZE) {
     const batch = xAccounts.slice(i, i + BATCH_SIZE);
     const batchPromises = batch.map(async (account) => {
@@ -360,7 +389,7 @@ export async function scanNews(
     }
 
     if (i + BATCH_SIZE < xAccounts.length) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 
@@ -415,12 +444,21 @@ export async function scanNews(
     }
   }
 
-  return {
+  const result: ScanResult = {
     items: deduplicatedItems,
     totalScannedSources: rssFeeds.length + xAccounts.length,
     successfulSources,
     timeframeHours: hours,
     scannedAt: new Date(now).toISOString(),
     xSessionActive,
+    isFromCache: false,
   };
+
+  // Guardar en la caché en memoria del servidor
+  scanCache.set(cacheKey, {
+    timestamp: now,
+    data: result,
+  });
+
+  return result;
 }
