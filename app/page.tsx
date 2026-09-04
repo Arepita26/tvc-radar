@@ -405,26 +405,26 @@ export default function HomePage() {
           />
         </section>
 
-        {/* Section 3: Clean Results & Time Subheader (No overlap) */}
-        <div className="mb-4 flex items-center justify-between border-b border-zinc-200/60 pb-2 text-xs text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400">
-          <div className="flex items-center gap-2">
-            <span className="font-mono font-semibold text-[#1D1D1F] dark:text-[#F5F5F7]">
+        {/* Section 3: Clean Results & Time Subheader (No overlap, responsive wrapping) */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-zinc-200/60 pb-2 text-xs text-zinc-500 dark:border-zinc-800/60 dark:text-zinc-400">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <span className="font-mono font-semibold text-[#1D1D1F] dark:text-[#F5F5F7] whitespace-nowrap">
               {displayedItems.length} resultado(s)
             </span>
             {breakingOnly && (
-              <span className="rounded-full bg-rose-500/10 px-2 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+              <span className="inline-flex items-center rounded-full bg-rose-500/10 px-2.5 py-0.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap shrink-0">
                 Filtro Última Hora
               </span>
             )}
           </div>
 
           {isBackgroundSyncing ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium text-blue-600 dark:text-blue-400">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap shrink-0">
               <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
               <span>Sincronizando en vivo...</span>
             </span>
           ) : lastScanTime ? (
-            <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
+            <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap shrink-0">
               Actualizado:{" "}
               {lastScanTime.toLocaleTimeString("es-VE", {
                 hour: "2-digit",
@@ -542,6 +542,9 @@ export default function HomePage() {
             </span>
             <span>-</span>
             <span>Sistema de Monitoreo para La TV Calle</span>
+            <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              v2026.09.03.1
+            </span>
           </div>
 
           <div className="flex items-center gap-4 font-mono text-[11px]">

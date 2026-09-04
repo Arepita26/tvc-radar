@@ -16,13 +16,19 @@ export const NewsCard: React.FC<NewsCardProps> = ({ item, index }) => {
   const getCategoryBadgeClass = (category: string) => {
     switch (category?.toLowerCase()) {
       case "ddhh":
+      case "derechos humanos":
         return "bg-red-500/10 text-red-700 dark:text-red-400 border-red-500/20";
       case "servicios":
         return "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20";
       case "estado":
         return "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20";
       case "politica":
+      case "política":
         return "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20";
+      case "medios":
+        return "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20";
+      case "internacional":
+        return "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20";
       default:
         return "bg-zinc-500/10 text-zinc-700 dark:text-zinc-300 border-zinc-500/20";
     }
@@ -53,6 +59,10 @@ export const NewsCard: React.FC<NewsCardProps> = ({ item, index }) => {
     }
   };
 
+  const isDDHH =
+    item.category?.toLowerCase() === "ddhh" ||
+    item.category?.toLowerCase() === "derechos humanos";
+
   return (
     <article className="group bg-white dark:bg-[#1C1C1E] border border-zinc-200/90 dark:border-zinc-800/90 rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
       <div>
@@ -67,7 +77,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ item, index }) => {
         )}
 
         {/* FILA 1: Índices, Badges y Tiempo Relativo */}
-        <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-start justify-between gap-2 mb-1.5">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
             <span className="font-mono text-xs font-semibold text-zinc-400 dark:text-zinc-500 shrink-0">
               #{indexFormatted}
@@ -77,7 +87,14 @@ export const NewsCard: React.FC<NewsCardProps> = ({ item, index }) => {
                 item.category
               )} shrink-0`}
             >
-              {item.category === "DDHH" ? "Derechos Humanos" : item.category}
+              {isDDHH ? (
+                <>
+                  <span className="sm:hidden">DDHH</span>
+                  <span className="hidden sm:inline">Derechos Humanos</span>
+                </>
+              ) : (
+                item.category
+              )}
             </span>
             {regionText && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-100 dark:bg-zinc-800/80 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shrink-0">
@@ -86,7 +103,7 @@ export const NewsCard: React.FC<NewsCardProps> = ({ item, index }) => {
             )}
           </div>
 
-          <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 whitespace-nowrap shrink-0 font-mono">
+          <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 whitespace-nowrap shrink-0 font-mono pt-0.5">
             {item.relativeTime}
           </span>
         </div>

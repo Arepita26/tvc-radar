@@ -128,7 +128,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning className="dark">
       <head>
-        <meta name="app-version" content="2026.09.02.1" />
+        <meta name="app-version" content="2026.09.03.1" />
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
@@ -144,7 +144,7 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  const CURRENT_VERSION = '2026.09.02.1';
+                  const CURRENT_VERSION = '2026.09.03.1';
                   const installedVersion = localStorage.getItem('tvc_app_version');
 
                   // Si la versión en el dispositivo es antigua, purgamos cachés obsoletas automáticamente
